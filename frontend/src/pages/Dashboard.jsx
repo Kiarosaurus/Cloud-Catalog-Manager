@@ -118,13 +118,10 @@ export default function Dashboard() {
                     <tr key={u.id}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          {u.profile_image_url ? (
-                            <img className="avatar" src={u.profile_image_url} alt={u.name} />
-                          ) : (
-                            <span className="avatar-empty">
-                              <IconUser width={20} height={20} />
-                            </span>
-                          )}
+                          {/* Foto de perfil oculta en la página de administración */}
+                          <span className="avatar-empty">
+                            <IconUser width={20} height={20} />
+                          </span>
                           <div>
                             <div className="cell-name">{u.name}</div>
                             <div className="muted" style={{ fontSize: '0.82rem' }}>
