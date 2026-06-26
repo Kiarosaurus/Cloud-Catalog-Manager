@@ -15,7 +15,7 @@ Aplicación web de **3 capas** con perfil de administrador para **gestionar usua
 - **Base de datos:** PostgreSQL (contenedor en local / **RDS** en producción)
 - **Almacenamiento de imágenes:** AWS S3 (vía `boto3`)
 - **Orquestación:** Docker Compose
-- **Despliegue:** EC2 (AWS Academy)
+- **Despliegue:** EC2 (AWS)
 
 El perfil **Admin** se autentica (JWT) y realiza el **CRUD** completo de usuarios
 (crear, listar, editar, eliminar), incluyendo la subida de la **foto de perfil**
@@ -39,7 +39,7 @@ del usuario a **Amazon S3**.
 
 En **producción**, Nginx sirve el frontend estático y hace *reverse-proxy* de `/api`
 hacia el backend, por lo que el navegador usa **rutas relativas** y no depende de la
-IP pública de EC2 (que cambia en cada sesión de Academy).
+IP pública de EC2.
 
 ---
 
@@ -111,7 +111,7 @@ s14lab/
 
    | Variable | Descripción |
    |---|---|
-   | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` | Credenciales temporales de Academy (los 3, cada sesión) |
+   | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` | Credenciales de AWS (los 3) |
    | `AWS_REGION` | Región del bucket (p. ej. `us-east-1`) |
    | `S3_BUCKET_NAME` | Nombre exacto del bucket S3 |
    | `DATABASE_URL` | Conexión a Postgres. Local: `postgresql://admin:admin123@db:5432/catalogo`. Prod (RDS): endpoint del RDS |
@@ -181,7 +181,7 @@ La imagen (`image`) se sube a S3 con prefijo `profiles/` y se guarda en `profile
 
 ## 7. Despliegue en producción (EC2 + RDS)
 
-### 7.1. Preparar AWS (consola Academy)
+### 7.1. Preparar AWS (consola)
 
 1. **RDS PostgreSQL:** crea una instancia y anota el *endpoint*, usuario y contraseña.
 2. **S3:** crea el bucket y habilita lectura pública de objetos (para mostrar imágenes).
@@ -219,41 +219,13 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 Accede en `http://<IP-PÚBLICA-EC2>/`.
 
-> 🔁 **La IP pública de EC2 cambia** cada vez que se reinicia la instancia en
-> Academy. Como el frontend usa rutas relativas (`/api` vía Nginx), **no hay que
-> reconstruir** nada: basta con usar la nueva IP en el navegador.
-
-### 7.4. Refrescar credenciales AWS (cada sesión)
-
-Cuando el `AWS_SESSION_TOKEN` caduca, las subidas a S3 devuelven error `502`.
-Solución:
-
-```bash
-# 1) Pega las 3 credenciales nuevas en .env
-# 2) Reinicia solo el backend:
-docker compose -f docker-compose.prod.yml up -d --build backend
-```
-
 ---
 
-## 8. Solución de problemas
-
-| Síntoma | Causa probable | Solución |
-|---|---|---|
-| Subir imagen da `502 Error subiendo a S3` | `AWS_SESSION_TOKEN` caducado | Repegar las 3 credenciales en `.env` y reiniciar backend |
-| `400 Tipo de imagen no permitido` | Formato no soportado | Usar JPG, PNG, WEBP o GIF |
-| `401 Credenciales inválidas` | Token JWT expirado (8 h) | Volver a iniciar sesión |
-| `port 5432 already allocated` (local) | Otro Postgres usa el puerto | Detener el otro servicio o cambiar el mapeo en `docker-compose.yml` |
-| La imagen no se ve | Bucket sin lectura pública | Ajustar la política del bucket S3 |
-
----
-
-## 9. Notas de seguridad
+## 8. Notas de seguridad
 
 - `.env` con secretos reales **nunca** se sube al repositorio.
 - En producción conviene restringir `allow_origins` del CORS (hoy abierto para el lab)
   y usar HTTPS (p. ej. con un reverse-proxy / certificado).
-- Las credenciales de AWS Academy son temporales por diseño; no son válidas fuera del Lab.
 
 ---
 
@@ -276,4 +248,4 @@ docker compose -f docker-compose.prod.yml up -d --build backend
 <!-- SCREENSHOT: aplicación funcionando en http://<IP-PÚBLICA-EC2> -->
 ![Captura app en EC2](docs/screenshots/app-ec2.png)
 
-> Reemplazar cada imagen colocando las capturas en `docs/screenshots/`.
+[Enlace a video (excedía 150 MB)](https://drive.google.com/drive/folders/1BRlbtIGj9RpI2YTDvFAeTKU0-HZXfdK9?usp=sharing)
