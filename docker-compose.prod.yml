@@ -1,0 +1,42 @@
+# ==========================================================
+# Orquestación de PRODUCCIÓN (EC2 - AWS Academy).
+#   backend  -> FastAPI (sin --reload), DB apunta a RDS vía DATABASE_URL
+#   frontend -> build estático servido por Nginx (puerto 80) + proxy /api
+# No hay service 'db': en prod se usa RDS (PostgreSQL gestionado).
+# Levantar con:  docker compose -f docker-compose.prod.yml up -d --build
+# ==========================================================
+services:
+  backend:
+    build: ./backend
+    container_name: catalogo_backend_prod
+    restart: unless-stopped
+    # .env debe tener DATABASE_URL apuntando al endpoint del RDS, p.ej:
+    #   postgresql://admin:pass@mi-rds.xxxx.us-east-1.rds.amazonaws.com:5432/catalogo
+    # y las 3 credenciales temporales de AWS Academy (token incluido).
+    env_file:
+      - .env
+    # Sin --reload y sin bind-mount: imagen inmutable de producción.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    expose:
+      - "8000"   # solo accesible dentro de la red interna (lo consume nginx)
+    networks:
+      - catalogo_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile          # multi-stage prod (nginx)
+      args:
+        VITE_API_URL: ""              # rutas relativas -> nginx proxya /api
+    container_name: catalogo_frontend_prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - catalogo_net
+
+networks:
+  catalogo_net:
+    driver: bridge

@@ -1,0 +1,70 @@
+# ==========================================================
+# Orquestación: 3 contenedores independientes
+#   db       -> PostgreSQL local (solo desarrollo/testing)
+#   backend  -> FastAPI + boto3 (S3)
+#   frontend -> React (Vite, modo dev en Phase 1)
+# Variables sensibles se inyectan desde .env (no hardcode).
+# ==========================================================
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: catalogo_db
+    restart: unless-stopped
+    environment:
+      # Interpolación automática desde el .env de la raíz
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - catalogo_net
+
+  backend:
+    build: ./backend
+    container_name: catalogo_backend
+    restart: unless-stopped
+    # env_file inyecta TODAS las vars del .env (AWS, DB, JWT) al contenedor
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    networks:
+      - catalogo_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev   # modo dev (vite + hot-reload)
+    container_name: catalogo_frontend
+    restart: unless-stopped
+    environment:
+      - VITE_API_URL=${VITE_API_URL}
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - catalogo_net
+
+volumes:
+  pgdata:
+
+networks:
+  catalogo_net:
+    driver: bridge

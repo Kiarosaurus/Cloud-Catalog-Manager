@@ -1,0 +1,30 @@
+# Secretos y credenciales (NUNCA commitear)
+.env
+*.env
+!.env.example
+
+# Claves SSH / certificados (EC2, etc.)
+labuser.pem
+*.pem
+*.key
+*.ppk
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Node / React
+node_modules/
+dist/
+.vite/
+
+# Docker
+*.log
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
