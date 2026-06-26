@@ -33,14 +33,29 @@ def upload_image(file_bytes: bytes, content_type: str, filename: str) -> str:
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "bin"
     key = f"profiles/{uuid.uuid4().hex}.{ext}"
 
+    base_args = dict(
+        Bucket=settings.S3_BUCKET_NAME,
+        Key=key,
+        Body=file_bytes,
+        ContentType=content_type,
+    )
+
     try:
         client = _get_s3_client()
-        client.put_object(
-            Bucket=settings.S3_BUCKET_NAME,
-            Key=key,
-            Body=file_bytes,
-            ContentType=content_type,
-        )
+        try:
+            # Marca el objeto como público para que la URL virtual-hosted sea
+            # accesible por el navegador (GET anónimo). Requiere que el bucket
+            # NO bloquee ACLs públicas.
+            client.put_object(**base_args, ACL="public-read")
+        except ClientError as acl_exc:
+            code = acl_exc.response.get("Error", {}).get("Code", "")
+            # Bucket con ACLs deshabilitadas (Object Ownership = BucketOwnerEnforced)
+            # o ACL pública bloqueada -> reintenta SIN ACL para no romper el upload.
+            # En ese caso la lectura pública debe habilitarse con BUCKET POLICY.
+            if code in ("AccessControlListNotSupported", "InvalidArgument", "AccessDenied"):
+                client.put_object(**base_args)
+            else:
+                raise
     except (BotoCoreError, ClientError) as exc:
         # Causa típica: token de Academy caducado -> repegar credenciales en .env
         raise HTTPException(status_code=502, detail=f"Error subiendo a S3: {exc}")
