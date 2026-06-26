@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
-import { Logo, IconPlus, IconEdit, IconTrash, IconUser, IconLogout, IconUsers } from '../components/icons'
+import { Logo, IconPlus, IconEdit, IconTrash, IconLogout, IconUsers } from '../components/icons'
 
 // Badge de estado del usuario.
 function statusBadge(status) {
@@ -117,17 +117,9 @@ export default function Dashboard() {
                   return (
                     <tr key={u.id}>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          {/* Foto de perfil oculta en la página de administración */}
-                          <span className="avatar-empty">
-                            <IconUser width={20} height={20} />
-                          </span>
-                          <div>
-                            <div className="cell-name">{u.name}</div>
-                            <div className="muted" style={{ fontSize: '0.82rem' }}>
-                              {u.email}
-                            </div>
-                          </div>
+                        <div className="cell-name">{u.name}</div>
+                        <div className="muted" style={{ fontSize: '0.82rem' }}>
+                          {u.email}
                         </div>
                       </td>
                       <td>
