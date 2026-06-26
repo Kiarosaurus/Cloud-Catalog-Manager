@@ -12,6 +12,29 @@ function statusBadge(status) {
     : { cls: 'badge-ok', label: 'Activo' }
 }
 
+// Iniciales para el fallback del avatar (máx. 2 letras).
+function initials(name) {
+  return (name || '?')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+}
+
+// Avatar con presigned URL; si falla la carga (URL expirada / sin foto)
+// muestra las iniciales en vez del icono de imagen rota.
+function Avatar({ url, name }) {
+  const [failed, setFailed] = useState(false)
+  if (!url || failed) {
+    return <span className="avatar-empty">{initials(name)}</span>
+  }
+  return (
+    <img className="avatar" src={url} alt={name} onError={() => setFailed(true)} />
+  )
+}
+
 export default function Dashboard() {
   const { logout } = useAuth()
   const navigate = useNavigate()
@@ -117,9 +140,14 @@ export default function Dashboard() {
                   return (
                     <tr key={u.id}>
                       <td>
-                        <div className="cell-name">{u.name}</div>
-                        <div className="muted" style={{ fontSize: '0.82rem' }}>
-                          {u.email}
+                        <div className="user-cell">
+                          <Avatar url={u.profile_image_url} name={u.name} />
+                          <div>
+                            <div className="cell-name">{u.name}</div>
+                            <div className="muted" style={{ fontSize: '0.82rem' }}>
+                              {u.email}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td>

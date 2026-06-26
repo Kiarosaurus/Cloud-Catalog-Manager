@@ -19,7 +19,7 @@ class User(Base):
     role = Column(String, nullable=False, default="user")          # admin | user
     status = Column(String, nullable=False, default="activo")      # activo | inactivo
     phone = Column(String, nullable=True)
-    profile_image_url = Column(String, nullable=True)              # imagen de perfil en S3
+    profile_image_url = Column(String, nullable=True)              # S3 key de la foto (profiles/uuid.ext); se firma al leer
 
 
 class AdminUser(Base):

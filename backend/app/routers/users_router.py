@@ -1,8 +1,9 @@
 """
 Router CRUD de usuarios administrables (protegido por JWT).
 La foto de perfil se sube como multipart/form-data: los campos del usuario van
-como Form(...) y el archivo opcional como UploadFile -> se sube a S3 y se guarda
-la URL en profile_image_url.
+como Form(...) y el archivo opcional como UploadFile -> se sube a S3 (bucket
+privado) y se guarda la S3 key en profile_image_url. Al leer, se genera una
+presigned GET URL temporal para que el navegador pueda mostrar la imagen.
 """
 from typing import List, Optional
 
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_admin
 from ..database import get_db
 from ..models import User
-from ..s3 import upload_image
+from ..s3 import presigned_url, upload_image
 from ..schemas import UserOut
 
 router = APIRouter(
@@ -34,16 +35,24 @@ def _validate(email: Optional[str], role: Optional[str], status_: Optional[str])
         raise HTTPException(status_code=400, detail="status debe ser 'activo' o 'inactivo'")
 
 
-def _read_image_url(image: Optional[UploadFile]) -> Optional[str]:
+def _read_image_key(image: Optional[UploadFile]) -> Optional[str]:
+    """Sube la imagen (si la hay) y devuelve la S3 key a guardar en DB."""
     if image is None or not image.filename:
         return None
     content = image.file.read()
     return upload_image(content, image.content_type, image.filename)
 
 
+def _serialize(user: User) -> UserOut:
+    """ORM -> UserOut, convirtiendo la S3 key guardada en una presigned URL."""
+    out = UserOut.model_validate(user)
+    out.profile_image_url = presigned_url(user.profile_image_url) if user.profile_image_url else None
+    return out
+
+
 @router.get("/", response_model=List[UserOut])
 def list_users(db: Session = Depends(get_db)):
-    return db.query(User).order_by(User.id).all()
+    return [_serialize(u) for u in db.query(User).order_by(User.id).all()]
 
 
 @router.get("/{user_id}", response_model=UserOut)
@@ -51,7 +60,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return user
+    return _serialize(user)
 
 
 @router.post("/", response_model=UserOut, status_code=status.HTTP_201_CREATED)
@@ -68,19 +77,19 @@ def create_user(
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=400, detail="Ya existe un usuario con ese email")
 
-    profile_image_url = _read_image_url(image)
+    image_key = _read_image_key(image)
     user = User(
         name=name,
         email=email,
         role=role,
         status=status_,
         phone=phone,
-        profile_image_url=profile_image_url,
+        profile_image_url=image_key,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return _serialize(user)
 
 
 @router.put("/{user_id}", response_model=UserOut)
@@ -113,13 +122,13 @@ def update_user(
     if phone is not None:
         user.phone = phone
 
-    new_url = _read_image_url(image)
-    if new_url is not None:
-        user.profile_image_url = new_url
+    new_key = _read_image_key(image)
+    if new_key is not None:
+        user.profile_image_url = new_key
 
     db.commit()
     db.refresh(user)
-    return user
+    return _serialize(user)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
